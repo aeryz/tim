@@ -1,0 +1,35 @@
+name: tim
+version: "0.1"
+about: Run tim-tests easy, smart and parallel
+author: Abdullah E. <abdullaheryz@protonmail.com>
+
+args:
+    - build_system:
+        help: Build system to use.
+        possible_values: [ cmake ]
+        short: b
+        long: build-system
+        takes_value: true
+    - project_path:
+        help: Path to C/C++ project.
+        short: p
+        long: project-path
+        takes_value: true
+        required: true
+    - working_dir:
+        help: Path to working directory. (Default is '${PROJECT_PATH}/build')
+        short: w
+        long: working-dir
+        takes_value: true
+    - tests:
+        help: Name of the tests to run. (eg. foo_test,bar_test)
+        short: t
+        long: tests
+        takes_value: true
+        multiple: true
+    - excludes:
+        help: Name of the tests that won't be run. (eg. foo_test,bar_test)
+        short: x
+        long: exclude-tests
+        takes_value: true
+        multiple: true
