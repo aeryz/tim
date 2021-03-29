@@ -11,6 +11,7 @@ pub trait BuildSystem: std::fmt::Debug {
     fn config_name(&self) -> &'static str;
 }
 
+#[inline]
 pub fn from_config(config_name: &str) -> Option<Box<dyn BuildSystem>> {
     match config_name {
         "CMakeLists.txt" => Some(Box::new(Cmake)),

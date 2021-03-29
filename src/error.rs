@@ -6,4 +6,6 @@ pub use thiserror::Error;
 pub enum TimError {
     #[error("Path does not exists: {0}")]
     PathDoesNotExits(PathBuf),
+    #[error("Build system can not be found.")]
+    BuildSystemCannotBeFound,
 }

@@ -8,7 +8,7 @@ pub struct AppConfig {
     pub project_path: PathBuf,
     pub working_dir: PathBuf,
     pub tests: HashSet<String>,
-    pub excludes: Option<HashSet<String>>,
+    pub excludes: HashSet<String>,
 }
 
 fn exists(path: &str) -> anyhow::Result<PathBuf> {
@@ -36,9 +36,10 @@ impl AppConfig {
                 Some(tests) => tests.map(String::from).collect(),
                 None => HashSet::new(),
             },
-            excludes: m
-                .values_of("excludes")
-                .map(|x| x.map(String::from).collect()),
+            excludes: match m.values_of("excludes") {
+                Some(excludes) => excludes.map(String::from).collect(),
+                None => HashSet::new(),
+            },
         })
     }
 }
