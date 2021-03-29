@@ -7,8 +7,8 @@ pub struct AppConfig {
     pub build_system: Option<Box<dyn BuildSystem>>,
     pub project_path: PathBuf,
     pub working_dir: PathBuf,
-    pub tests: HashSet<String>,
-    pub excludes: HashSet<String>,
+    pub tests: HashSet<PathBuf>,
+    pub excludes: HashSet<PathBuf>,
 }
 
 fn exists(path: &str) -> anyhow::Result<PathBuf> {
@@ -30,14 +30,14 @@ impl AppConfig {
             project_path: exists(m.value_of("project_path").unwrap().into())?,
             working_dir: match m.value_of("working_dir") {
                 Some(wd) => exists(wd)?,
-                None => env::current_dir().unwrap(),
+                None => format!("{}/build", env::current_dir()?.to_str().unwrap()).into(),
             },
             tests: match m.values_of("tests") {
-                Some(tests) => tests.map(String::from).collect(),
+                Some(tests) => tests.map(PathBuf::from).collect(),
                 None => HashSet::new(),
             },
             excludes: match m.values_of("excludes") {
-                Some(excludes) => excludes.map(String::from).collect(),
+                Some(excludes) => excludes.map(PathBuf::from).collect(),
                 None => HashSet::new(),
             },
         })

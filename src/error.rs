@@ -8,4 +8,6 @@ pub enum TimError {
     PathDoesNotExits(PathBuf),
     #[error("Build system can not be found.")]
     BuildSystemCannotBeFound,
+    #[error("Error occured while building tests.")]
+    BuildSystemError,
 }

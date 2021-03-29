@@ -1,14 +1,17 @@
 mod cmake;
-
 pub use cmake::Cmake;
+
+use std::path::PathBuf;
 
 #[derive(Debug)]
 pub enum BuildSystemType {
     Cmake,
 }
 
-pub trait BuildSystem: std::fmt::Debug {
+pub trait BuildSystem: std::fmt::Debug + Send + Sync {
     fn config_name(&self) -> &'static str;
+
+    fn build(&self, config_path: PathBuf) -> anyhow::Result<()>;
 }
 
 #[inline]

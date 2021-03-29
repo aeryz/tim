@@ -9,3 +9,4 @@ anyhow = "1.0"
 clap = { version = "2.33", features = ["yaml"] }
 thiserror = "1.0"
 walkdir = "2"
+regex = "1"
