@@ -1,8 +1,11 @@
+use std::sync::mpsc;
+
 use {
     crate::{
         build_system::{self, BuildSystem},
         config::AppConfig,
         error::TimError,
+        FfiHandler,
     },
     regex::Regex,
     std::{
@@ -48,7 +51,15 @@ impl App {
         let _ = builder_thread.join().unwrap()?;
         let test_names = parser_thread.join().unwrap()?;
 
-        println!("THREAD {:?}", test_names);
+        let (tx, rx) = mpsc::channel();
+        let runner_thread = App::spawn_runner(test_names, tx);
+
+        while let Ok(data) = rx
+            .recv()
+            .map_err(|err| TimError::UnexpectedError(err.into()))
+        {
+            // TODO: Do some stuff with the results
+        }
 
         Ok(())
     }
@@ -61,6 +72,7 @@ impl App {
         thread::spawn(move || build_system.build(project_path))
     }
 
+    #[inline]
     fn spawn_parser(test_paths: HashSet<PathBuf>) -> JoinHandle<anyhow::Result<HashSet<String>>> {
         thread::spawn(move || {
             let mut test_names = HashSet::new();
@@ -69,6 +81,17 @@ impl App {
             }
             Ok(test_names)
         })
+    }
+
+    #[inline]
+    fn spawn_runner(
+        test_names: HashSet<String>,
+        sender: mpsc::Sender<anyhow::Result<()>>,
+    ) -> JoinHandle<()> {
+        /*
+         * spawn MAX_THREADS threads in a pool and run the tests, send the results via sender
+         */
+        unimplemented!()
     }
 
     fn parse_test_names(file_path: PathBuf) -> anyhow::Result<HashSet<String>> {

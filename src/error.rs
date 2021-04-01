@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{error::Error, path::PathBuf};
 
 pub use thiserror::Error;
 
@@ -10,4 +10,6 @@ pub enum TimError {
     BuildSystemCannotBeFound,
     #[error("Error occured while building tests.")]
     BuildSystemError,
+    #[error("Unexpected error is occured. Message: {0}")]
+    UnexpectedError(anyhow::Error),
 }
