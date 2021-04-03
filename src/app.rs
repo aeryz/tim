@@ -1,19 +1,19 @@
-use std::sync::mpsc;
-
 use {
     crate::{
         build_system::{self, BuildSystem},
         config::AppConfig,
         error::TimError,
-        test_api::{parser, FfiHandler},
+        test_api::{parser, FfiHandler, TestResult},
     },
     std::{
         collections::HashSet,
         env, fs,
         path::{Path, PathBuf},
+        sync::{mpsc, Arc},
         thread,
         thread::JoinHandle,
     },
+    threadpool::ThreadPool,
     walkdir::WalkDir,
 };
 
@@ -52,13 +52,25 @@ impl App {
         let test_names = parser_thread.join().unwrap()?;
 
         let (tx, rx) = mpsc::channel();
-        let runner_thread = App::spawn_runner(test_names, tx);
 
-        while let Ok(data) = rx
-            .recv()
-            .map_err(|err| TimError::UnexpectedError(err.into()))
-        {
-            // TODO: Do some stuff with the results
+        thread::spawn(move || App::run_tests(test_names, tx));
+
+        while let Ok(test_res) = rx.recv() {
+            let test_res = test_res?;
+            let test_name = test_res.0;
+            let test_res = test_res.1;
+            if test_res.success {
+                println!("[ + ] {} succeeded.", test_name);
+            } else {
+                println!("[ - ] {} failed.", test_name);
+                if let Some(fname) = test_res.file {
+                    println!("\tFile: {}", fname.into_string()?);
+                }
+                println!("\tLine: {}", test_res.line);
+            }
+            if let Some(msg) = test_res.msg {
+                println!("\tMessage: {}", msg.into_string()?);
+            }
         }
 
         Ok(())
@@ -84,14 +96,27 @@ impl App {
     }
 
     #[inline]
-    fn spawn_runner(
+    fn run_tests(
         test_names: HashSet<String>,
-        sender: mpsc::Sender<anyhow::Result<()>>,
-    ) -> JoinHandle<()> {
-        /*
-         * spawn MAX_THREADS threads in a pool and run the tests, send the results via sender
-         */
-        unimplemented!()
+        sender: mpsc::Sender<anyhow::Result<(String, TestResult)>>,
+    ) {
+        let ffi_handler = match unsafe { FfiHandler::load(PathBuf::from("tim-test-lib")) } {
+            Ok(handler) => Arc::new(handler),
+            Err(e) => {
+                let _ = sender.send(Err(e));
+                return;
+            }
+        };
+
+        let pool = ThreadPool::new(4 /* TODO: Make this configurable */);
+
+        for test in test_names {
+            let sender_ = sender.clone();
+            let ffi_handler_ = ffi_handler.clone();
+            pool.execute(move || {
+                let _ = sender_.send(unsafe { ffi_handler_.run(&test) }.map(|res| (test, res)));
+            });
+        }
     }
 
     fn discover_project(&mut self) -> anyhow::Result<()> {

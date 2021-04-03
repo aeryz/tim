@@ -20,19 +20,20 @@ impl FfiHandler {
         })
     }
 
-    pub unsafe fn run(self: Arc<Self>, test_name: String) -> anyhow::Result<TestResult> {
+    pub unsafe fn run(self: Arc<Self>, test_name: &str) -> anyhow::Result<TestResult> {
         Ok(self.library.get::<TestFnT>(test_name.as_bytes())?().into())
     }
 
     pub unsafe fn free(self: Arc<Self>, test_result: TestResult) -> anyhow::Result<()> {
         Ok(self.library.get::<FreeFnT>(b"tim_free")?(
+            2,
             test_result.into(),
         ))
     }
 }
 
 type TestFnT = unsafe extern "C" fn() -> RawTestResult;
-type FreeFnT = unsafe extern "C" fn(AllocatedPart) -> ();
+type FreeFnT = unsafe extern "C" fn(c_uint, AllocatedPart) -> ();
 
 #[repr(C)]
 struct RawTestResult {
