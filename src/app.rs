@@ -7,7 +7,9 @@ use {
     },
     std::{
         collections::HashSet,
-        env, fs,
+        env,
+        ffi::CStr,
+        fs,
         path::{Path, PathBuf},
         sync::{mpsc, Arc},
         thread,
@@ -53,7 +55,10 @@ impl App {
 
         let (tx, rx) = mpsc::channel();
 
-        thread::spawn(move || App::run_tests(test_names, tx));
+        let ffi_handler = Arc::new(unsafe { FfiHandler::load(PathBuf::from("tim-test-lib"))? });
+
+        let ffi_handler_ = ffi_handler.clone();
+        thread::spawn(move || App::run_tests(ffi_handler_, test_names, tx));
 
         while let Ok(test_res) = rx.recv() {
             let test_res = test_res?;
@@ -63,14 +68,16 @@ impl App {
                 println!("[ + ] {} succeeded.", test_name);
             } else {
                 println!("[ - ] {} failed.", test_name);
-                if let Some(fname) = test_res.file {
-                    println!("\tFile: {}", fname.into_string()?);
+                if !test_res.file.is_null() {
+                    println!("\tFile: {:?}", unsafe { CStr::from_ptr(test_res.file) });
                 }
                 println!("\tLine: {}", test_res.line);
             }
-            if let Some(msg) = test_res.msg {
-                println!("\tMessage: {}", msg.into_string()?);
+            if !test_res.msg.is_null() {
+                println!("\tMessage: {:?}", unsafe { CStr::from_ptr(test_res.msg) });
             }
+
+            unsafe { ffi_handler.free(test_res)? };
         }
 
         Ok(())
@@ -97,17 +104,10 @@ impl App {
 
     #[inline]
     fn run_tests(
+        ffi_handler: Arc<FfiHandler>,
         test_names: HashSet<String>,
         sender: mpsc::Sender<anyhow::Result<(String, TestResult)>>,
     ) {
-        let ffi_handler = match unsafe { FfiHandler::load(PathBuf::from("tim-test-lib")) } {
-            Ok(handler) => Arc::new(handler),
-            Err(e) => {
-                let _ = sender.send(Err(e));
-                return;
-            }
-        };
-
         let pool = ThreadPool::new(4 /* TODO: Make this configurable */);
 
         for test in test_names {

@@ -2,7 +2,6 @@ use {
     super::TestResult,
     libloading::Library,
     std::{
-        ffi::CStr,
         os::raw::{c_char, c_uint, c_ulong},
         path::PathBuf,
         sync::Arc,
@@ -24,16 +23,17 @@ impl FfiHandler {
         Ok(self.library.get::<TestFnT>(test_name.as_bytes())?().into())
     }
 
-    pub unsafe fn free(self: Arc<Self>, test_result: TestResult) -> anyhow::Result<()> {
-        Ok(self.library.get::<FreeFnT>(b"tim_free")?(
-            2,
-            test_result.into(),
-        ))
+    pub unsafe fn free(self: &Arc<Self>, test_result: TestResult) -> anyhow::Result<()> {
+        if !test_result.msg.is_null() {
+            Ok(self.library.get::<FreeFnT>(b"tim_free")?(test_result.msg))
+        } else {
+            Ok(())
+        }
     }
 }
 
 type TestFnT = unsafe extern "C" fn() -> RawTestResult;
-type FreeFnT = unsafe extern "C" fn(c_uint, AllocatedPart) -> ();
+type FreeFnT = unsafe extern "C" fn(*const c_char) -> ();
 
 #[repr(C)]
 struct RawTestResult {
@@ -46,37 +46,10 @@ struct RawTestResult {
 impl From<RawTestResult> for TestResult {
     fn from(raw_res: RawTestResult) -> Self {
         TestResult {
-            file: if !raw_res.file.is_null() {
-                // This is safe because the incoming string is definitely allocated,
-                // otherwise it is NULL'ed.
-                Some(unsafe { CStr::from_ptr(raw_res.file).into() })
-            } else {
-                None
-            },
-            msg: if !raw_res.msg.is_null() {
-                // This is safe because the incoming string is definitely allocated,
-                // otherwise it is NULL'ed.
-                Some(unsafe { CStr::from_ptr(raw_res.msg).into() })
-            } else {
-                None
-            },
+            file: raw_res.file,
+            msg: raw_res.msg,
             line: raw_res.line,
             success: if 0 == raw_res.success { false } else { true },
-        }
-    }
-}
-
-#[repr(C)]
-struct AllocatedPart {
-    file: *const c_char,
-    msg: *const c_char,
-}
-
-impl Into<AllocatedPart> for TestResult {
-    fn into(self) -> AllocatedPart {
-        AllocatedPart {
-            file: self.file.unwrap_or_default().as_ptr(),
-            msg: self.msg.unwrap_or_default().as_ptr(),
         }
     }
 }
