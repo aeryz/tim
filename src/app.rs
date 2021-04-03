@@ -5,14 +5,11 @@ use {
         build_system::{self, BuildSystem},
         config::AppConfig,
         error::TimError,
-        FfiHandler,
+        test_api::{parser, FfiHandler},
     },
-    regex::Regex,
     std::{
         collections::HashSet,
         env, fs,
-        fs::File,
-        io::{BufRead, BufReader},
         path::{Path, PathBuf},
         thread,
         thread::JoinHandle,
@@ -42,10 +39,13 @@ impl App {
     pub fn run(mut self) -> anyhow::Result<()> {
         self.discover_project()?;
 
+        // Run the build system
         let builder_thread = App::spawn_builder(
             self.config.build_system.unwrap(),
             self.config.project_path.clone(),
         );
+
+        // Parse the test names
         let parser_thread = App::spawn_parser(self.config.tests);
 
         let _ = builder_thread.join().unwrap()?;
@@ -77,7 +77,7 @@ impl App {
         thread::spawn(move || {
             let mut test_names = HashSet::new();
             for test_path in test_paths {
-                test_names.extend(App::parse_test_names(test_path)?);
+                test_names.extend(parser::parse_test_names(test_path)?);
             }
             Ok(test_names)
         })
@@ -92,24 +92,6 @@ impl App {
          * spawn MAX_THREADS threads in a pool and run the tests, send the results via sender
          */
         unimplemented!()
-    }
-
-    fn parse_test_names(file_path: PathBuf) -> anyhow::Result<HashSet<String>> {
-        let mut ret = HashSet::new();
-        let file = File::open(file_path)?;
-        for line in BufReader::new(file).lines() {
-            let line = line?;
-            let line = line.trim_start();
-            if line.chars().next() != Some('T') {
-                continue;
-            }
-            if let Some(captures) = Regex::new(r"TIM_TEST *\((\w+)\).*")?.captures(&line) {
-                if captures.len() > 1 {
-                    ret.insert(captures.get(1).unwrap().as_str().to_string());
-                }
-            }
-        }
-        Ok(ret)
     }
 
     fn discover_project(&mut self) -> anyhow::Result<()> {
