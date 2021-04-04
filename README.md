@@ -49,7 +49,7 @@ tim -p /path/to/my/project
 
 ## Installation
 
-`tim` is not yet published to [crates.io](crates.io). So it is necessary to clone the repository.
+`tim` is not yet published to [crates.io](https://crates.io). So it is necessary to clone the repository.
 
 ```bash
 git clone https://github.com/aeryz/tim
