@@ -1,6 +1,8 @@
-use crate::{build_system::BuildSystem, TimError};
-use clap::{load_yaml, App};
-use std::{collections::HashSet, env, path::PathBuf};
+use {
+    crate::{build_system::BuildSystem, TimError},
+    clap::{load_yaml, App},
+    std::{collections::HashSet, env, fs, path::PathBuf},
+};
 
 #[derive(Debug)]
 pub struct AppConfig {
@@ -14,7 +16,7 @@ pub struct AppConfig {
 fn exists(path: &str) -> anyhow::Result<PathBuf> {
     let buf = PathBuf::from(path);
     if buf.exists() {
-        Ok(buf)
+        fs::canonicalize(&buf).map_err(|e| e.into())
     } else {
         Err(TimError::PathDoesNotExits(buf).into())
     }
