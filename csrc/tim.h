@@ -47,7 +47,7 @@ typedef struct {
   TIM_ASSERT_EQ_ARR_FN_MSG(LHS, RHS, LEN, EQ_FN, NULL);
 
 #define TIM_ASSERT_MSG(X, MSG)                                                 \
-  if (!X) {                                                                    \
+  if (!(X)) {                                                                  \
     return _tim_error(__FILE__, __LINE__, MSG);                                \
   }
 
